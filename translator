@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Translate · Feek</title>
+  <style>
+    /* ---- RESET & BASE (Black & White) ---- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #ffffff;
+      color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px 12px 40px;
+    }
+    .container {
+      max-width: 580px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ---- HEADER ---- */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 2px solid #000;
+      padding-bottom: 8px;
+      margin-bottom: 18px;
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header small {
+      font-size: 14px;
+      color: #555;
+      font-weight: 300;
+    }
+
+    /* ---- CUSTOM DROPDOWN (replaces <select>) ---- */
+    .custom-select {
+      position: relative;
+      width: 100%;
+      min-width: 120px;
+    }
+    .custom-select .trigger {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-weight: 500;
+      background: #fff;
+      color: #000;
+      border: 1px solid #aaa;
+      border-radius: 0;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    .custom-select .trigger:focus,
+    .custom-select .trigger.active {
+      border-color: #000;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+    }
+    .custom-select .trigger .arrow {
+      font-size: 12px;
+      margin-left: 8px;
+      transition: transform 0.2s;
+    }
+    .custom-select .trigger .arrow.open {
+      transform: rotate(180deg);
+    }
+    .custom-select .dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #aaa;
+      border-radius: 0;
+      max-height: 280px;
+      overflow: hidden;
+      display: none;
+      z-index: 999;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      flex-direction: column;
+    }
+    .custom-select .dropdown.open {
+      display: flex;
+    }
+    .custom-select .search-box {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+    }
+    .custom-select .search-box input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 0;
+      outline: none;
+      background: #fff;
+      color: #000;
+    }
+    .custom-select .search-box input:focus {
+      border-color: #000;
+    }
+    .custom-select .list-wrap {
+      overflow-y: auto;
+      flex: 1;
+      padding: 4px 0;
+      max-height: 220px;
+    }
+    .custom-select .list-item {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.1s;
+    }
+    .custom-select .list-item:active {
+      background: #eaeaea;
+    }
+    .custom-select .list-item .lang-name {
+      flex: 1;
+    }
+    .custom-select .list-item .pin-icon {
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+      user-select: none;
+      min-width: 20px;
+      text-align: center;
+    }
+    .custom-select .list-item .pin-icon.pinned {
+      color: #000;
+      font-weight: 700;
+    }
+    .custom-select .list-item .pin-icon.unpinned {
+      color: #bbb;
+      font-weight: 300;
+    }
+    .custom-select .list-item .pin-icon:active {
+      transform: scale(0.9);
+    }
+    .custom-select .list-item .check {
+      margin-left: 8px;
+      font-weight: 700;
+      color: #000;
+    }
+    .custom-select .list-item.pinned-item {
+      background: #f8f8f8;
+      border-left: 3px solid #000;
+    }
+    .custom-select .list-item.pinned-item:hover {
+      background: #eee;
+    }
+    .custom-select .no-results {
+      padding: 16px;
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+    }
+    .custom-select .divider {
+      border-top: 2px solid #ddd;
+      margin: 4px 10px;
+    }
+
+    /* ---- SELECTOR ROW ---- */
+    .selector-row {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .selector-row .custom-select {
+      flex: 1;
+      min-width: 120px;
+    }
+    .action-btns {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      align-items: stretch;
+    }
+    .action-btns button {
+      background: #fff;
+      border: 1px solid #aaa;
+      border-radius: 0;
+      padding: 0 14px;
+      font-size: 18px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #000;
+      transition: 0.1s;
+      touch-action: manipulation;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .action-btns button:active {
+      background: #000;
+      color: #fff;
+      border-color: #000;
+    }
+
+    /* ---- TEXT BOXES ---- */
+    .text-box {
+      margin-bottom: 12px;
+    }
+    .text-box textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 14px 16px;
+      font-size: 18px;
+      font-family: inherit;
+      border: 1px solid #aaa;
+      border-radius: 0;
+      resize: vertical;
+      background: #fff;
+      color: #000;
+      outline: none;
+      transition: border 0.1s;
+      line-height: 1.5;
+    }
+    .text-box textarea:focus {
+      border-color: #000;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+    }
+    .text-box textarea::placeholder {
+      color: #999;
+      font-weight: 300;
+    }
+    .output-box {
+      position: relative;
+    }
+    .output-box textarea {
+      background: #f8f8f8;
+      color: #000;
+      cursor: default;
+    }
+    .output-box .copy-btn {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 0;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .output-box .copy-btn:active {
+      background: #000;
+      color: #fff;
+      border-color: #000;
+    }
+    .char-count {
+      text-align: right;
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+      padding-right: 4px;
+    }
+    .error-msg {
+      color: #000;
+      background: #eee;
+      padding: 8px 12px;
+      border-radius: 0;
+      font-size: 14px;
+      margin: 8px 0;
+      border-left: 3px solid #000;
+      display: none;
+    }
+
+    /* ---- RESPONSIVE ---- */
+    @media (max-width: 480px) {
+      .selector-row {
+        gap: 6px;
+      }
+      .custom-select .trigger {
+        font-size: 14px;
+        padding: 8px 10px;
+      }
+      .action-btns button {
+        padding: 0 10px;
+        font-size: 16px;
+      }
+      .text-box textarea {
+        min-height: 100px;
+        font-size: 16px;
+        padding: 12px;
+      }
+      .custom-select .list-item {
+        font-size: 13px;
+        padding: 6px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>Translate</h1>
+    <small>by Feek</small>
+  </div>
+
+  <!-- SELECTORS (custom dropdowns) -->
+  <div class="selector-row">
+    <div class="custom-select" id="sourceSelect">
+      <div class="trigger" tabindex="0">
+        <span class="selected-label">🔍 Detect language</span>
+        <span class="arrow">▾</span>
+      </div>
+      <div class="dropdown">
+        <div class="search-box">
+          <input type="text" placeholder="Search language..." class="search-input">
+        </div>
+        <div class="list-wrap"></div>
+      </div>
+    </div>
+
+    <div class="action-btns">
+      <button id="swapBtn" title="Swap languages">⇄</button>
+    </div>
+
+    <div class="custom-select" id="targetSelect">
+      <div class="trigger" tabindex="0">
+        <span class="selected-label">🇺🇸 English</span>
+        <span class="arrow">▾</span>
+      </div>
+      <div class="dropdown">
+        <div class="search-box">
+          <input type="text" placeholder="Search language..." class="search-input">
+        </div>
+        <div class="list-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-msg" id="errorMsg">⚠️ Something went wrong. Check your connection.</div>
+
+  <!-- SOURCE TEXT -->
+  <div class="text-box">
+    <textarea id="sourceText" placeholder="Type or paste your text here..."></textarea>
+    <div class="char-count"><span id="charCount">0</span> characters</div>
+  </div>
+
+  <!-- TARGET TEXT (OUTPUT) -->
+  <div class="text-box output-box">
+    <textarea id="targetText" placeholder="Translation will appear here..." readonly></textarea>
+    <button class="copy-btn" id="copyBtn">📋 Copy</button>
+  </div>
+
+</div>
+
+<script>
+  (function() {
+    'use strict';
+
+    // ─── LANGUAGE DATABASE ───
+    const LANGUAGES = {
+      'auto': '🔍 Detect language',
+      'af': 'Afrikaans', 'sq': 'Albanian', 'am': 'Amharic', 'ar': 'Arabic',
+      'hy': 'Armenian', 'az': 'Azerbaijani', 'eu': 'Basque', 'be': 'Belarusian',
+      'bn': 'Bengali', 'bs': 'Bosnian', 'bg': 'Bulgarian', 'ca': 'Catalan',
+      'ceb': 'Cebuano', 'ny': 'Chichewa', 'zh-CN': 'Chinese (Simplified)',
+      'zh-TW': 'Chinese (Traditional)', 'co': 'Corsican', 'hr': 'Croatian',
+      'cs': 'Czech', 'da': 'Danish', 'nl': 'Dutch', 'en': 'English',
+      'eo': 'Esperanto', 'et': 'Estonian', 'tl': 'Filipino', 'fi': 'Finnish',
+      'fr': 'French', 'fy': 'Frisian', 'gl': 'Galician', 'ka': 'Georgian',
+      'de': 'German', 'el': 'Greek', 'gu': 'Gujarati', 'ht': 'Haitian Creole',
+      'ha': 'Hausa', 'haw': 'Hawaiian', 'iw': 'Hebrew', 'hi': 'Hindi',
+      'hmn': 'Hmong', 'hu': 'Hungarian', 'is': 'Icelandic', 'ig': 'Igbo',
+      'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italian', 'ja': 'Japanese',
+      'jw': 'Javanese', 'kn': 'Kannada', 'kk': 'Kazakh', 'km': 'Khmer',
+      'ko': 'Korean', 'ku': 'Kurdish (Kurmanji)', 'ky': 'Kyrgyz', 'lo': 'Lao',
+      'la': 'Latin', 'lv': 'Latvian', 'lt': 'Lithuanian', 'lb': 'Luxembourgish',
+      'mk': 'Macedonian', 'mg': 'Malagasy', 'ms': 'Malay', 'ml': 'Malayalam',
+      'mt': 'Maltese', 'mi': 'Maori', 'mr': 'Marathi', 'mn': 'Mongolian',
+      'my': 'Myanmar (Burmese)', 'ne': 'Nepali', 'no': 'Norwegian',
+      'ps': 'Pashto', 'fa': 'Persian', 'pl': 'Polish', 'pt': 'Portuguese',
+      'pa': 'Punjabi', 'ro': 'Romanian', 'ru': 'Russian', 'sm': 'Samoan',
+      'gd': 'Scots Gaelic', 'sr': 'Serbian', 'st': 'Sesotho', 'sn': 'Shona',
+      'sd': 'Sindhi', 'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian',
+      'so': 'Somali', 'es': 'Spanish', 'su': 'Sundanese', 'sw': 'Swahili',
+      'sv': 'Swedish', 'tg': 'Tajik', 'ta': 'Tamil', 'te': 'Telugu',
+      'th': 'Thai', 'tr': 'Turkish', 'uk': 'Ukrainian', 'ur': 'Urdu',
+      'uz': 'Uzbek', 'vi': 'Vietnamese', 'cy': 'Welsh', 'xh': 'Xhosa',
+      'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu'
+    };
+
+    // ─── DOM REFS ───
+    const sourceText = document.getElementById('sourceText');
+    const targetText = document.getElementById('targetText');
+    const swapBtn = document.getElementById('swapBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const charCount = document.getElementById('charCount');
+    const copyBtn = document.getElementById('copyBtn');
+
+    const sourceSelectEl = document.getElementById('sourceSelect');
+    const targetSelectEl = document.getElementById('targetSelect');
+
+    // ─── PIN MANAGEMENT (shared) ───
+    function getPinned() {
+      try {
+        const raw = localStorage.getItem('feek_pinned_langs');
+        if (raw) return JSON.parse(raw);
+      } catch (_) {}
+      return [];
+    }
+    function setPinned(pinned) {
+      localStorage.setItem('feek_pinned_langs', JSON.stringify(pinned));
+    }
+
+    function togglePin(code) {
+      let pinned = getPinned();
+      const idx = pinned.indexOf(code);
+      if (idx > -1) {
+        pinned.splice(idx, 1);
+      } else {
+        if (!LANGUAGES[code] || code === 'auto') return;
+        pinned.push(code);
+      }
+      setPinned(pinned);
+      renderDropdown(sourceSelectEl);
+      renderDropdown(targetSelectEl);
+      updateSelectedLabels();
+    }
+
+    // ─── CUSTOM DROPDOWN LOGIC ───
+    function buildLanguageList(searchTerm = '', pinnedCodes = [], excludeAuto = false) {
+      let entries = Object.entries(LANGUAGES);
+      if (excludeAuto) {
+        entries = entries.filter(([code]) => code !== 'auto');
+      }
+      const lower = searchTerm.toLowerCase();
+      const filtered = entries.filter(([code, name]) => {
+        return code.toLowerCase().includes(lower) || name.toLowerCase().includes(lower);
+      });
+      
+      const pinnedItems = [];
+      const unpinnedItems = [];
+      for (const [code, name] of filtered) {
+        if (pinnedCodes.includes(code)) {
+          pinnedItems.push([code, name]);
+        } else {
+          unpinnedItems.push([code, name]);
+        }
+      }
+      unpinnedItems.sort((a, b) => a[1].localeCompare(b[1]));
+      pinnedItems.sort((a, b) => pinnedCodes.indexOf(a[0]) - pinnedCodes.indexOf(b[0]));
+      return { pinnedItems, unpinnedItems };
+    }
+
+    function renderDropdown(dropdownEl) {
+      const listWrap = dropdownEl.querySelector('.list-wrap');
+      const searchInput = dropdownEl.querySelector('.search-input');
+      const searchTerm = searchInput.value.trim();
+      const pinned = getPinned();
+      const isTarget = dropdownEl.id === 'targetSelect';
+      const { pinnedItems, unpinnedItems } = buildLanguageList(searchTerm, pinned, isTarget);
+      const currentValue = dropdownEl.dataset.selected || 'auto';
+
+      listWrap.innerHTML = '';
+      if (pinnedItems.length === 0 && unpinnedItems.length === 0) {
+        listWrap.innerHTML = '<div class="no-results">No languages found</div>';
+        return;
+      }
+
+      function createItem(code, name, isPinned) {
+        const div = document.createElement('div');
+        div.className = 'list-item' + (isPinned ? ' pinned-item' : '');
+        div.dataset.code = code;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'lang-name';
+        nameSpan.textContent = name;
+        div.appendChild(nameSpan);
+
+        const pinSpan = document.createElement('span');
+        pinSpan.className = 'pin-icon ' + (isPinned ? 'pinned' : 'unpinned');
+        pinSpan.textContent = isPinned ? '📌' : '○';
+        pinSpan.addEventListener('click', (e) => {
+          e.stopPropagation();
+          togglePin(code);
+        });
+        div.appendChild(pinSpan);
+
+        if (code === currentValue) {
+          const check = document.createElement('span');
+          check.className = 'check';
+          check.textContent = '✓';
+          div.appendChild(check);
+        }
+
+        div.addEventListener('click', (e) => {
+          if (e.target.closest('.pin-icon')) return;
+          dropdownEl.dataset.selected = code;
+          const label = dropdownEl.querySelector('.selected-label');
+          label.textContent = LANGUAGES[code] || code;
+          closeDropdown(dropdownEl);
+          if (dropdownEl.id === 'sourceSelect' || dropdownEl.id === 'targetSelect') {
+            if (sourceText.value.trim()) {
+              triggerTranslate();
+            }
+          }
+          renderDropdown(dropdownEl);
+          renderDropdown(dropdownEl === sourceSelectEl ? targetSelectEl : sourceSelectEl);
+        });
+
+        return div;
+      }
+
+      for (const [code, name] of pinnedItems) {
+        listWrap.appendChild(createItem(code, name, true));
+      }
+      if (pinnedItems.length > 0 && unpinnedItems.length > 0) {
+        const divider = document.createElement('div');
+        divider.className = 'divider';
+        listWrap.appendChild(divider);
+      }
+      for (const [code, name] of unpinnedItems) {
+        listWrap.appendChild(createItem(code, name, false));
+      }
+    }
+
+    function openDropdown(dropdownEl) {
+      const trigger = dropdownEl.querySelector('.trigger');
+      const dropdown = dropdownEl.querySelector('.dropdown');
+      const arrow = trigger.querySelector('.arrow');
+      dropdown.classList.add('open');
+      arrow.classList.add('open');
+      trigger.classList.add('active');
+      const searchInput = dropdownEl.querySelector('.search-input');
+      setTimeout(() => searchInput.focus(), 50);
+      renderDropdown(dropdownEl);
+    }
+
+    function closeDropdown(dropdownEl) {
+      const trigger = dropdownEl.querySelector('.trigger');
+      const dropdown = dropdownEl.querySelector('.dropdown');
+      const arrow = trigger.querySelector('.arrow');
+      dropdown.classList.remove('open');
+      arrow.classList.remove('open');
+      trigger.classList.remove('active');
+      const searchInput = dropdownEl.querySelector('.search-input');
+      searchInput.value = '';
+      renderDropdown(dropdownEl);
+    }
+
+    function toggleDropdown(dropdownEl) {
+      const dropdown = dropdownEl.querySelector('.dropdown');
+      if (dropdown.classList.contains('open')) {
+        closeDropdown(dropdownEl);
+      } else {
+        document.querySelectorAll('.custom-select .dropdown.open').forEach(d => {
+          const parent = d.closest('.custom-select');
+          if (parent !== dropdownEl) closeDropdown(parent);
+        });
+        openDropdown(dropdownEl);
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-select')) {
+        document.querySelectorAll('.custom-select .dropdown.open').forEach(d => {
+          const parent = d.closest('.custom-select');
+          closeDropdown(parent);
+        });
+      }
+    });
+
+    function initDropdown(dropdownEl, defaultCode) {
+      dropdownEl.dataset.selected = defaultCode;
+      const label = dropdownEl.querySelector('.selected-label');
+      label.textContent = LANGUAGES[defaultCode] || defaultCode;
+
+      const trigger = dropdownEl.querySelector('.trigger');
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown(dropdownEl);
+      });
+
+      const searchInput = dropdownEl.querySelector('.search-input');
+      searchInput.addEventListener('input', () => {
+        renderDropdown(dropdownEl);
+      });
+      searchInput.addEventListener('click', (e) => e.stopPropagation());
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeDropdown(dropdownEl);
+          trigger.focus();
+        }
+      });
+
+      renderDropdown(dropdownEl);
+    }
+
+    function updateSelectedLabels() {
+      renderDropdown(sourceSelectEl);
+      renderDropdown(targetSelectEl);
+    }
+
+    // ─── TRANSLATION ENGINE ───
+    async function translateText(text, source, target) {
+      if (!text.trim()) {
+        targetText.value = '';
+        return;
+      }
+      if (source === target && source !== 'auto') {
+        targetText.value = text;
+        return;
+      }
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        let translated = '';
+        if (data && data[0]) {
+          translated = data[0].map(item => item[0]).join('');
+        }
+        return translated;
+      } catch (err) {
+        console.error('Translation error:', err);
+        throw err;
+      }
+    }
+
+    let translateTimeout = null;
+    async function triggerTranslate() {
+      const text = sourceText.value;
+      const source = sourceSelectEl.dataset.selected || 'auto';
+      const target = targetSelectEl.dataset.selected || 'en';
+      charCount.textContent = text.length;
+
+      if (!text.trim()) {
+        targetText.value = '';
+        errorMsg.style.display = 'none';
+        return;
+      }
+
+      try {
+        errorMsg.style.display = 'none';
+        const result = await translateText(text, source, target);
+        targetText.value = result || '';
+      } catch (err) {
+        errorMsg.style.display = 'block';
+        targetText.value = '⚠️ Translation failed. Please try again.';
+      }
+    }
+
+    function onInputChange() {
+      charCount.textContent = sourceText.value.length;
+      if (translateTimeout) clearTimeout(translateTimeout);
+      translateTimeout = setTimeout(() => {
+        triggerTranslate();
+      }, 400);
+    }
+
+    // ─── SWAP (fixed: if source is 'auto', only swap text, keep languages) ───
+    function swapLanguages() {
+      const src = sourceSelectEl.dataset.selected || 'auto';
+      const tgt = targetSelectEl.dataset.selected || 'en';
+
+      // Swap the text always
+      const tempText = sourceText.value;
+      sourceText.value = targetText.value;
+      targetText.value = tempText;
+
+      if (src === 'auto') {
+        // If source is auto, we only swap text – languages remain unchanged.
+        // This prevents 'auto' from ever moving to the target side.
+        // After text swap, the new source text will be auto-detected.
+        // Trigger translation if needed (source text changed)
+        if (sourceText.value.trim()) {
+          triggerTranslate();
+        } else {
+          targetText.value = '';
+        }
+        // Update char count
+        charCount.textContent = sourceText.value.length;
+        return;
+      }
+
+      // If source is not auto, do full language swap
+      sourceSelectEl.dataset.selected = tgt;
+      targetSelectEl.dataset.selected = src;
+      sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES[tgt] || tgt;
+      targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES[src] || src;
+
+      renderDropdown(sourceSelectEl);
+      renderDropdown(targetSelectEl);
+
+      if (sourceText.value.trim()) {
+        triggerTranslate();
+      } else {
+        targetText.value = '';
+      }
+      charCount.textContent = sourceText.value.length;
+    }
+
+    function copyTranslation() {
+      const text = targetText.value;
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+    }
+
+    // ─── EVENT BINDING ───
+    sourceText.addEventListener('input', onInputChange);
+    swapBtn.addEventListener('click', swapLanguages);
+    copyBtn.addEventListener('click', copyTranslation);
+
+    // ─── INIT ───
+    initDropdown(sourceSelectEl, 'auto');
+    initDropdown(targetSelectEl, 'en');
+
+    sourceText.placeholder = 'Type or paste your text here...';
+    targetText.placeholder = 'Translation will appear here...';
+    charCount.textContent = '0';
+    targetText.value = '';
+
+    console.log('🔥 Feek Translate | Pinned:', getPinned());
+  })();
+</script>
+</body>
+</html>
