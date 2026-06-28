@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>Translate Anything</title>
+  <title>Translate · Feek</title>
   <style>
     /* ---- RESET & BASE (Black & White) ---- */
     * {
@@ -266,6 +266,10 @@
       color: #333;
       touch-action: manipulation;
       z-index: 2;
+      display: none; /* hidden by default, shown when text is long */
+    }
+    .text-box .big-text-btn.visible {
+      display: block;
     }
     .text-box .big-text-btn:active {
       background: #000;
@@ -320,7 +324,7 @@
       display: none;
     }
 
-    /* ---- BIG TEXT OVERLAY ---- */
+    /* ---- BIG TEXT OVERLAY (with textarea) ---- */
     .big-overlay {
       position: fixed;
       top: 0;
@@ -333,7 +337,7 @@
       display: none;
       flex-direction: column;
       padding: 40px 20px;
-      overflow-y: auto;
+      overflow: hidden;
       touch-action: pan-y;
     }
     .big-overlay.active {
@@ -354,16 +358,27 @@
     .big-overlay .close-btn:active {
       opacity: 0.6;
     }
-    .big-overlay .big-text-content {
+    .big-overlay .big-textarea {
+      background: transparent;
+      color: #fff;
+      border: none;
+      outline: none;
       font-size: 2.5rem;
       line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-word;
+      font-family: inherit;
+      resize: none;
+      width: 100%;
       max-width: 800px;
       margin: 0 auto;
-      width: 100%;
-      padding: 20px 0;
       flex: 1;
+      padding: 20px 0;
+      overflow-y: auto;
+    }
+    .big-overlay .big-textarea:read-only {
+      cursor: default;
+    }
+    .big-overlay .big-textarea::placeholder {
+      color: #666;
     }
 
     /* ---- RESPONSIVE ---- */
@@ -388,7 +403,7 @@
       .output-box textarea {
         padding-right: 90px;
       }
-      .big-overlay .big-text-content {
+      .big-overlay .big-textarea {
         font-size: 2rem;
       }
       .big-overlay {
@@ -408,7 +423,7 @@
   <!-- HEADER -->
   <div class="header">
     <h1>Translate</h1>
-    <small>by Nex</small>
+    <small>by Feek</small>
   </div>
 
   <!-- SELECTORS -->
@@ -466,7 +481,7 @@
 <!-- BIG TEXT OVERLAY -->
 <div class="big-overlay" id="bigOverlay">
   <button class="close-btn" id="bigOverlayClose">✕</button>
-  <div class="big-text-content" id="bigTextContent"></div>
+  <textarea class="big-textarea" id="bigTextarea" placeholder=""></textarea>
 </div>
 
 <script>
@@ -518,8 +533,11 @@
 
     // Big overlay
     const bigOverlay = document.getElementById('bigOverlay');
-    const bigTextContent = document.getElementById('bigTextContent');
+    const bigTextarea = document.getElementById('bigTextarea');
     const bigOverlayClose = document.getElementById('bigOverlayClose');
+
+    // Expand buttons
+    const bigBtns = document.querySelectorAll('.big-text-btn');
 
     // ─── PIN MANAGEMENT ───
     function getPinned() {
@@ -616,14 +634,11 @@
 
         div.addEventListener('click', (e) => {
           if (e.target.closest('.pin-icon')) return;
-          // Set selection
           dropdownEl.dataset.selected = code;
           const label = dropdownEl.querySelector('.selected-label');
           label.textContent = LANGUAGES[code] || code;
           closeDropdown(dropdownEl);
-          // Enforce language uniqueness
           enforceLanguageUniqueness(dropdownEl);
-          // Trigger translation
           if (sourceText.value.trim()) {
             triggerTranslate();
           }
@@ -729,21 +744,18 @@
       const source = sourceSelectEl.dataset.selected || 'auto';
       const target = targetSelectEl.dataset.selected || 'en';
 
-      // If source is not 'auto' and target equals source, set target to 'en' (or first non-auto)
       if (source !== 'auto' && target === source) {
         targetSelectEl.dataset.selected = 'en';
         targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES['en'];
         renderDropdown(targetSelectEl);
         renderDropdown(sourceSelectEl);
       }
-      // If target is set and source equals target and source is not 'auto', set source to 'auto'
       else if (source !== 'auto' && source === target) {
         sourceSelectEl.dataset.selected = 'auto';
         sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES['auto'];
         renderDropdown(sourceSelectEl);
         renderDropdown(targetSelectEl);
       }
-      // If source is 'auto', no conflict
     }
 
     // ─── TRANSLATION ENGINE ───
@@ -796,12 +808,45 @@
     }
 
     function onInputChange() {
-      charCount.textContent = sourceText.value.length;
+      const text = sourceText.value;
+      charCount.textContent = text.length;
+      // Toggle expand button visibility (threshold: 100 chars)
+      const sourceBtn = document.querySelector('#inputBox .big-text-btn');
+      if (text.length > 100) {
+        sourceBtn.classList.add('visible');
+      } else {
+        sourceBtn.classList.remove('visible');
+      }
+      // Also for target button: it shows when translation is long (but we keep it always visible if text is long? We'll show based on targetText length)
+      const targetBtn = document.querySelector('#outputBox .big-text-btn');
+      if (targetText.value.length > 100) {
+        targetBtn.classList.add('visible');
+      } else {
+        targetBtn.classList.remove('visible');
+      }
+
       if (translateTimeout) clearTimeout(translateTimeout);
       translateTimeout = setTimeout(() => {
         triggerTranslate();
       }, 400);
     }
+
+    // We need to also listen to targetText changes (from translation) to update its button visibility
+    function updateTargetButtonVisibility() {
+      const targetBtn = document.querySelector('#outputBox .big-text-btn');
+      if (targetText.value.length > 100) {
+        targetBtn.classList.add('visible');
+      } else {
+        targetBtn.classList.remove('visible');
+      }
+    }
+
+    // Override triggerTranslate to call updateTargetButtonVisibility after setting targetText
+    const originalTrigger = triggerTranslate;
+    triggerTranslate = async function() {
+      await originalTrigger();
+      updateTargetButtonVisibility();
+    };
 
     // ─── SWAP ───
     function swapLanguages() {
@@ -813,21 +858,22 @@
       targetText.value = tempText;
 
       if (src === 'auto') {
-        // Only swap text, keep languages
         if (sourceText.value.trim()) {
           triggerTranslate();
         } else {
           targetText.value = '';
         }
         charCount.textContent = sourceText.value.length;
+        onInputChange(); // update button visibility
         return;
       }
 
-      // Full swap
       sourceSelectEl.dataset.selected = tgt;
       targetSelectEl.dataset.selected = src;
       sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES[tgt] || tgt;
       targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES[src] || src;
+
+      enforceLanguageUniqueness(null);
 
       renderDropdown(sourceSelectEl);
       renderDropdown(targetSelectEl);
@@ -838,6 +884,7 @@
         targetText.value = '';
       }
       charCount.textContent = sourceText.value.length;
+      onInputChange(); // update button visibility
     }
 
     // ─── COPY ───
@@ -861,14 +908,36 @@
       document.body.removeChild(ta);
     }
 
-    // ─── BIG TEXT OVERLAY ───
-    function openBigText(content) {
-      bigTextContent.textContent = content || '';
+    // ─── BIG TEXT OVERLAY (modified) ───
+    let overlayTarget = 'source'; // 'source' or 'target'
+
+    function openBigText(target) {
+      overlayTarget = target;
+      const text = target === 'source' ? sourceText.value : targetText.value;
+      bigTextarea.value = text;
+      // Set readonly based on target
+      bigTextarea.readOnly = (target === 'target');
+      // For source, we want editable, so we set readOnly false
+      bigTextarea.placeholder = target === 'source' ? 'Edit your text here...' : 'Translation (read-only)';
       bigOverlay.classList.add('active');
       document.body.style.overflow = 'hidden';
+      // Focus the textarea if editable
+      if (target === 'source') {
+        setTimeout(() => bigTextarea.focus(), 100);
+      }
     }
 
     function closeBigText() {
+      // If overlayTarget is 'source', copy back the edited text to sourceText and trigger translation
+      if (overlayTarget === 'source') {
+        const newText = bigTextarea.value;
+        if (newText !== sourceText.value) {
+          sourceText.value = newText;
+          charCount.textContent = newText.length;
+          triggerTranslate();
+          onInputChange(); // update button visibility
+        }
+      }
       bigOverlay.classList.remove('active');
       document.body.style.overflow = '';
     }
@@ -878,8 +947,7 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const target = btn.dataset.target;
-        const text = target === 'source' ? sourceText.value : targetText.value;
-        openBigText(text);
+        openBigText(target);
       });
     });
 
@@ -888,65 +956,7 @@
       if (e.target === bigOverlay) closeBigText();
     });
 
-    // ─── EVENT BINDING ───
-    sourceText.addEventListener('input', onInputChange);
-    swapBtn.addEventListener('click', swapLanguages);
-    copyBtn.addEventListener('click', copyTranslation);
-
-    // On dropdown change, enforce uniqueness and trigger translation
-    sourceSelectEl.addEventListener('change', function(e) {
-      // change event is not fired by custom dropdown, we use our own selection logic
-      // But we already call enforceLanguageUniqueness inside the item click.
-      // We'll also add a listener on dataset changes via MutationObserver? Not needed.
-    });
-
-    // We need to re‑enforce when target changes via our click handler (already there)
-    // Also when swap changes, we call enforce after swap? In swap we set both, but uniqueness may break if swap results in same. We'll add a check after swap.
-    // Modify swapLanguages to call enforce after setting.
-
-    // Override swapLanguages to call enforce uniqueness after full swap
-    const originalSwap = swapLanguages;
-    swapLanguages = function() {
-      const src = sourceSelectEl.dataset.selected || 'auto';
-      const tgt = targetSelectEl.dataset.selected || 'en';
-
-      const tempText = sourceText.value;
-      sourceText.value = targetText.value;
-      targetText.value = tempText;
-
-      if (src === 'auto') {
-        if (sourceText.value.trim()) triggerTranslate();
-        else targetText.value = '';
-        charCount.textContent = sourceText.value.length;
-        return;
-      }
-
-      sourceSelectEl.dataset.selected = tgt;
-      targetSelectEl.dataset.selected = src;
-      sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES[tgt] || tgt;
-      targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES[src] || src;
-
-      // Enforce uniqueness after swap
-      enforceLanguageUniqueness(null);
-
-      renderDropdown(sourceSelectEl);
-      renderDropdown(targetSelectEl);
-
-      if (sourceText.value.trim()) {
-        triggerTranslate();
-      } else {
-        targetText.value = '';
-      }
-      charCount.textContent = sourceText.value.length;
-    };
-
-    // Also when a dropdown selection is made, we already call enforceLanguageUniqueness in the item click.
-    // We need to attach it to the source and target selection events in our custom logic.
-
-    // Patch: In the item click handler (inside renderDropdown), after setting selection we call enforceLanguageUniqueness(dropdownEl).
-    // That's already there.
-
-    // ─── INIT ───
+    // ─── INITIAL SETUP ───
     initDropdown(sourceSelectEl, 'auto');
     initDropdown(targetSelectEl, 'en');
 
@@ -955,8 +965,26 @@
     charCount.textContent = '0';
     targetText.value = '';
 
+    // Initial button visibility (both hidden)
+    document.querySelectorAll('.big-text-btn').forEach(btn => btn.classList.remove('visible'));
+
+    // Add input event to source and also listen to translation updates
+    sourceText.addEventListener('input', onInputChange);
+    // For target, we update via triggerTranslate, but we also need to update when translation is set manually? We'll observe targetText changes.
+    // Use MutationObserver or just call updateTargetButtonVisibility whenever targetText is set.
+    // We'll patch triggerTranslate to call it, and also call it after swap and after translation.
+    // Also call after copy? Not needed.
+
+    // Override triggerTranslate already done.
+
+    // Also call onInputChange after targetText changes via translation.
+    // We'll call updateTargetButtonVisibility inside triggerTranslate (already).
+
+    swapBtn.addEventListener('click', swapLanguages);
+    copyBtn.addEventListener('click', copyTranslation);
+
     console.log('🔥 Nex Translate | Pinned:', getPinned());
   })();
 </script>
 </body>
-                                     </html>
+</html>
