@@ -47,7 +47,7 @@
       font-weight: 300;
     }
 
-    /* ---- CUSTOM DROPDOWN (replaces <select>) ---- */
+    /* ---- CUSTOM DROPDOWN ---- */
     .custom-select {
       position: relative;
       width: 100%;
@@ -223,14 +223,16 @@
       border-color: #000;
     }
 
-    /* ---- TEXT BOXES ---- */
+    /* ---- TEXT BOXES (with big-text button) ---- */
     .text-box {
       margin-bottom: 12px;
+      position: relative;
     }
     .text-box textarea {
       width: 100%;
       min-height: 120px;
       padding: 14px 16px;
+      padding-right: 50px; /* space for button */
       font-size: 18px;
       font-family: inherit;
       border: 1px solid #aaa;
@@ -250,13 +252,31 @@
       color: #999;
       font-weight: 300;
     }
-    .output-box {
-      position: relative;
+    .text-box .big-text-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 0;
+      padding: 2px 8px;
+      font-size: 18px;
+      line-height: 1.4;
+      cursor: pointer;
+      color: #333;
+      touch-action: manipulation;
+      z-index: 2;
+    }
+    .text-box .big-text-btn:active {
+      background: #000;
+      color: #fff;
+      border-color: #000;
     }
     .output-box textarea {
       background: #f8f8f8;
       color: #000;
       cursor: default;
+      padding-right: 100px; /* space for both buttons */
     }
     .output-box .copy-btn {
       position: absolute;
@@ -271,11 +291,16 @@
       color: #333;
       cursor: pointer;
       touch-action: manipulation;
+      z-index: 2;
     }
     .output-box .copy-btn:active {
       background: #000;
       color: #fff;
       border-color: #000;
+    }
+    .output-box .big-text-btn {
+      top: 8px;
+      right: 10px;
     }
     .char-count {
       text-align: right;
@@ -295,6 +320,52 @@
       display: none;
     }
 
+    /* ---- BIG TEXT OVERLAY ---- */
+    .big-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      padding: 40px 20px;
+      overflow-y: auto;
+      touch-action: pan-y;
+    }
+    .big-overlay.active {
+      display: flex;
+    }
+    .big-overlay .close-btn {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      font-size: 32px;
+      color: #fff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      z-index: 10000;
+    }
+    .big-overlay .close-btn:active {
+      opacity: 0.6;
+    }
+    .big-overlay .big-text-content {
+      font-size: 2.5rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 20px 0;
+      flex: 1;
+    }
+
     /* ---- RESPONSIVE ---- */
     @media (max-width: 480px) {
       .selector-row {
@@ -312,10 +383,21 @@
         min-height: 100px;
         font-size: 16px;
         padding: 12px;
+        padding-right: 46px;
       }
-      .custom-select .list-item {
-        font-size: 13px;
-        padding: 6px 12px;
+      .output-box textarea {
+        padding-right: 90px;
+      }
+      .big-overlay .big-text-content {
+        font-size: 2rem;
+      }
+      .big-overlay {
+        padding: 20px 16px;
+      }
+      .big-overlay .close-btn {
+        top: 10px;
+        right: 16px;
+        font-size: 28px;
       }
     }
   </style>
@@ -329,11 +411,11 @@
     <small>by Nex</small>
   </div>
 
-  <!-- SELECTORS (custom dropdowns) -->
+  <!-- SELECTORS -->
   <div class="selector-row">
     <div class="custom-select" id="sourceSelect">
       <div class="trigger" tabindex="0">
-        <span class="selected-label">🔍 Detect language</span>
+        <span class="selected-label">Detect language</span>
         <span class="arrow">▾</span>
       </div>
       <div class="dropdown">
@@ -366,17 +448,25 @@
   <div class="error-msg" id="errorMsg">⚠️ Something went wrong. Check your connection.</div>
 
   <!-- SOURCE TEXT -->
-  <div class="text-box">
+  <div class="text-box" id="inputBox">
     <textarea id="sourceText" placeholder="Type or paste your text here..."></textarea>
+    <button class="big-text-btn" data-target="source" title="View large text">⤡</button>
     <div class="char-count"><span id="charCount">0</span> characters</div>
   </div>
 
   <!-- TARGET TEXT (OUTPUT) -->
-  <div class="text-box output-box">
+  <div class="text-box output-box" id="outputBox">
     <textarea id="targetText" placeholder="Translation will appear here..." readonly></textarea>
+    <button class="big-text-btn" data-target="target" title="View large text">⤡</button>
     <button class="copy-btn" id="copyBtn">📋 Copy</button>
   </div>
 
+</div>
+
+<!-- BIG TEXT OVERLAY -->
+<div class="big-overlay" id="bigOverlay">
+  <button class="close-btn" id="bigOverlayClose">✕</button>
+  <div class="big-text-content" id="bigTextContent"></div>
 </div>
 
 <script>
@@ -426,7 +516,12 @@
     const sourceSelectEl = document.getElementById('sourceSelect');
     const targetSelectEl = document.getElementById('targetSelect');
 
-    // ─── PIN MANAGEMENT (shared) ───
+    // Big overlay
+    const bigOverlay = document.getElementById('bigOverlay');
+    const bigTextContent = document.getElementById('bigTextContent');
+    const bigOverlayClose = document.getElementById('bigOverlayClose');
+
+    // ─── PIN MANAGEMENT ───
     function getPinned() {
       try {
         const raw = localStorage.getItem('feek_pinned_langs');
@@ -453,7 +548,7 @@
       updateSelectedLabels();
     }
 
-    // ─── CUSTOM DROPDOWN LOGIC ───
+    // ─── LANGUAGE LIST HELPERS ───
     function buildLanguageList(searchTerm = '', pinnedCodes = [], excludeAuto = false) {
       let entries = Object.entries(LANGUAGES);
       if (excludeAuto) {
@@ -521,14 +616,16 @@
 
         div.addEventListener('click', (e) => {
           if (e.target.closest('.pin-icon')) return;
+          // Set selection
           dropdownEl.dataset.selected = code;
           const label = dropdownEl.querySelector('.selected-label');
           label.textContent = LANGUAGES[code] || code;
           closeDropdown(dropdownEl);
-          if (dropdownEl.id === 'sourceSelect' || dropdownEl.id === 'targetSelect') {
-            if (sourceText.value.trim()) {
-              triggerTranslate();
-            }
+          // Enforce language uniqueness
+          enforceLanguageUniqueness(dropdownEl);
+          // Trigger translation
+          if (sourceText.value.trim()) {
+            triggerTranslate();
           }
           renderDropdown(dropdownEl);
           renderDropdown(dropdownEl === sourceSelectEl ? targetSelectEl : sourceSelectEl);
@@ -627,6 +724,28 @@
       renderDropdown(targetSelectEl);
     }
 
+    // ─── ENFORCE UNIQUE LANGUAGES ───
+    function enforceLanguageUniqueness(changedDropdown) {
+      const source = sourceSelectEl.dataset.selected || 'auto';
+      const target = targetSelectEl.dataset.selected || 'en';
+
+      // If source is not 'auto' and target equals source, set target to 'en' (or first non-auto)
+      if (source !== 'auto' && target === source) {
+        targetSelectEl.dataset.selected = 'en';
+        targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES['en'];
+        renderDropdown(targetSelectEl);
+        renderDropdown(sourceSelectEl);
+      }
+      // If target is set and source equals target and source is not 'auto', set source to 'auto'
+      else if (source !== 'auto' && source === target) {
+        sourceSelectEl.dataset.selected = 'auto';
+        sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES['auto'];
+        renderDropdown(sourceSelectEl);
+        renderDropdown(targetSelectEl);
+      }
+      // If source is 'auto', no conflict
+    }
+
     // ─── TRANSLATION ENGINE ───
     async function translateText(text, source, target) {
       if (!text.trim()) {
@@ -684,32 +803,27 @@
       }, 400);
     }
 
-    // ─── SWAP (fixed: if source is 'auto', only swap text, keep languages) ───
+    // ─── SWAP ───
     function swapLanguages() {
       const src = sourceSelectEl.dataset.selected || 'auto';
       const tgt = targetSelectEl.dataset.selected || 'en';
 
-      // Swap the text always
       const tempText = sourceText.value;
       sourceText.value = targetText.value;
       targetText.value = tempText;
 
       if (src === 'auto') {
-        // If source is auto, we only swap text – languages remain unchanged.
-        // This prevents 'auto' from ever moving to the target side.
-        // After text swap, the new source text will be auto-detected.
-        // Trigger translation if needed (source text changed)
+        // Only swap text, keep languages
         if (sourceText.value.trim()) {
           triggerTranslate();
         } else {
           targetText.value = '';
         }
-        // Update char count
         charCount.textContent = sourceText.value.length;
         return;
       }
 
-      // If source is not auto, do full language swap
+      // Full swap
       sourceSelectEl.dataset.selected = tgt;
       targetSelectEl.dataset.selected = src;
       sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES[tgt] || tgt;
@@ -726,6 +840,7 @@
       charCount.textContent = sourceText.value.length;
     }
 
+    // ─── COPY ───
     function copyTranslation() {
       const text = targetText.value;
       if (!text) return;
@@ -746,10 +861,90 @@
       document.body.removeChild(ta);
     }
 
+    // ─── BIG TEXT OVERLAY ───
+    function openBigText(content) {
+      bigTextContent.textContent = content || '';
+      bigOverlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeBigText() {
+      bigOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Event: big-text buttons
+    document.querySelectorAll('.big-text-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = btn.dataset.target;
+        const text = target === 'source' ? sourceText.value : targetText.value;
+        openBigText(text);
+      });
+    });
+
+    bigOverlayClose.addEventListener('click', closeBigText);
+    bigOverlay.addEventListener('click', (e) => {
+      if (e.target === bigOverlay) closeBigText();
+    });
+
     // ─── EVENT BINDING ───
     sourceText.addEventListener('input', onInputChange);
     swapBtn.addEventListener('click', swapLanguages);
     copyBtn.addEventListener('click', copyTranslation);
+
+    // On dropdown change, enforce uniqueness and trigger translation
+    sourceSelectEl.addEventListener('change', function(e) {
+      // change event is not fired by custom dropdown, we use our own selection logic
+      // But we already call enforceLanguageUniqueness inside the item click.
+      // We'll also add a listener on dataset changes via MutationObserver? Not needed.
+    });
+
+    // We need to re‑enforce when target changes via our click handler (already there)
+    // Also when swap changes, we call enforce after swap? In swap we set both, but uniqueness may break if swap results in same. We'll add a check after swap.
+    // Modify swapLanguages to call enforce after setting.
+
+    // Override swapLanguages to call enforce uniqueness after full swap
+    const originalSwap = swapLanguages;
+    swapLanguages = function() {
+      const src = sourceSelectEl.dataset.selected || 'auto';
+      const tgt = targetSelectEl.dataset.selected || 'en';
+
+      const tempText = sourceText.value;
+      sourceText.value = targetText.value;
+      targetText.value = tempText;
+
+      if (src === 'auto') {
+        if (sourceText.value.trim()) triggerTranslate();
+        else targetText.value = '';
+        charCount.textContent = sourceText.value.length;
+        return;
+      }
+
+      sourceSelectEl.dataset.selected = tgt;
+      targetSelectEl.dataset.selected = src;
+      sourceSelectEl.querySelector('.selected-label').textContent = LANGUAGES[tgt] || tgt;
+      targetSelectEl.querySelector('.selected-label').textContent = LANGUAGES[src] || src;
+
+      // Enforce uniqueness after swap
+      enforceLanguageUniqueness(null);
+
+      renderDropdown(sourceSelectEl);
+      renderDropdown(targetSelectEl);
+
+      if (sourceText.value.trim()) {
+        triggerTranslate();
+      } else {
+        targetText.value = '';
+      }
+      charCount.textContent = sourceText.value.length;
+    };
+
+    // Also when a dropdown selection is made, we already call enforceLanguageUniqueness in the item click.
+    // We need to attach it to the source and target selection events in our custom logic.
+
+    // Patch: In the item click handler (inside renderDropdown), after setting selection we call enforceLanguageUniqueness(dropdownEl).
+    // That's already there.
 
     // ─── INIT ───
     initDropdown(sourceSelectEl, 'auto');
@@ -760,8 +955,8 @@
     charCount.textContent = '0';
     targetText.value = '';
 
-    console.log('🔥 Feek Translate | Pinned:', getPinned());
+    console.log('🔥 Nex Translate | Pinned:', getPinned());
   })();
 </script>
 </body>
-</html>
+                                     </html>
